@@ -1,0 +1,504 @@
+int directionLeft = 12;
+int speedLeft = 3;
+int brakeLeft = 9;
+
+int directionRight = 13;
+int speedRight = 11;
+int brakeRight = 8;
+
+// This is are compulsory pins, cannot be changed !!!!!!!!!!!!//
+
+//left and right is not compulsory, we can change them at any time
+
+// The below is all the data and method we need
+
+int Left_Trace_sensor_1 = 4; // ********This is the first IR sensor in the left side of the car connected to the Arduino. Need to change before running**********
+int Left_Trace_sensor_2 = 5; // ********This is the first IR sensor in the left side of the car connceted to the Arduino. Need to change before running**********
+int Right_Trace_sensor_1 = 6; // ******the first IR sensor in the right side, need to change before running********
+// Why need change? *** Because the number they eaqual is the digital pin they connected to the arduino, they may be different.
+
+void Forward(); // move foward
+void Backward(); // move backward
+void turnRight(); // turn right
+void turnLeft(); // turn left
+void Stop(); //stop
+
+//all of them above should be included in the method Automatic_mode
+void Automatic_mode_edge();
+void Certain_mode();
+void Automatic_mode_random();
+// end of the movement of the car
+
+
+
+// start of Photo Interrupter Sensor
+int pI = 2; // ********the number of pin connecting the sensor, need to be changed before running this code************
+int pI2 = A1; // ********the number of pin connecting the sensor, need to be changed before running this code************
+
+int val; // calibration Value
+int val2; // for the second sensor
+
+long last = 0; // used in timing, it holds the last millisecond
+long last2 = 0; // for the second sensor
+
+int stat = LOW; // used in calibration
+int stat2 = HIGH; // used in calibration, combined with stat to detect the change between sensors
+
+int stat3; // for the second sensor
+int stat4 = HIGH; // for the second sensor
+
+int counter = 0; // used to count light/dark iterations
+int counter2 = 0; //for the second sensor
+
+int sens = 1; // calibration value, when the sensor is connected to analogue pin, it outpus value from 0 to 1000.
+int slots = 20; // *******the number of slots in disc, need to count before running this code**************
+int millisecs = 1000; //time of sample
+
+void count (); //count the resolution
+
+// end of the calculation of the RPM
+
+
+// for the edge dectection， edge is used to remember all the edges, we only need edge [3], edge [4], edge [5], edge [6]. And for convenience, we don't care about edge [0]
+long edge_length[4];
+int edge_count = 0;
+long lastTime[5]; // be set to remember the time and then calculate for the distance it travels
+bool edge_find = 0;
+long timeForRightAngle[2];
+long timeRightAngle;
+// end of the detection of four edges
+
+long turn90right = 800;
+
+void setup() {
+  // put your setup code here, to run once:
+  Serial.begin(9600);           // set up Serial library at 9600 bps
+
+  // set of each pinMode for sensors, but not the analogue ones because they don't need to set input , they are default by input
+  pinMode(Left_Trace_sensor_1, INPUT);
+  pinMode(Left_Trace_sensor_2, INPUT);
+  pinMode(Right_Trace_sensor_1, INPUT);
+  pinMode(pI, INPUT);
+
+  pinMode(directionLeft,OUTPUT);
+  pinMode(speedLeft,OUTPUT);
+  pinMode(brakeLeft,OUTPUT);
+
+  pinMode(directionRight,OUTPUT);
+  pinMode(speedRight,OUTPUT);
+  pinMode(brakeRight,OUTPUT);
+  
+  // set them all be input and then the arduino will be able to read all of the IR sensors we connect
+  
+  Serial.println("Motor Shield found.");
+  analogWrite(speedLeft,60);
+  analogWrite(speedRight,60);
+
+  // Set the speed to start, from 0 (off) to 255 (max speed
+}
+
+void loop() {
+   int five = 5;
+   five = random(five, 7);
+   Serial.println(five);  
+   delay(100);
+   
+//  Forward();
+//  Serial.println("turnRight");
+//  turnRight();
+//  delay(800);
+//  Serial.println("turnLeft");
+//  turnLeft();
+//  delay(800);
+//  Backward();
+//
+// ********we should determine the connection of RPM and setSpeed and Automatic_mdoe***********
+//  Serial.println(digitalRead(pI));
+//  Serial.println("This is the digital read");
+//  Serial.println(digitalRead(pI));
+//  Serial.println("This is the digital read");
+//  if(counter == 0){
+//  timeForRightAngle[0] = millis();
+//  Serial.println("Start Test");
+//  }
+//  
+//  while(counter < 8) {
+//   Serial.println("start counter");
+//   count();
+//   turnRight();
+//  }
+//
+// if(counter == 8){
+// timeForRightAngle[1] = millis();
+// Stop();
+// Serial.println("This is the time for turning right angle");
+// long timeRightAngle = timeForRightAngle[1] - timeForRightAngle[0];
+// Serial.println(timeRightAngle);
+// Serial.println("This is the end of time for turning a right angle");
+// counter = 0;
+// delay(10000);
+// }
+//  // put your main code here, to run repeatedly:
+
+//   
+//  if(edge_count < 5){ 
+//    Adutomatic_mode_edge();
+//  } else if(edge_count = 5){
+//    Certain_mode();
+//  } else if(edge_count > 5){
+//    Automatic_mode_random();
+//  }
+//  
+  
+}
+
+// This is for the edge detection for edge_count < 8
+void Adutomatic_mode_edge(){
+  
+  int stateValue = 0; // represent the state of the car by the value of integers calculated by IR sensors
+
+  stateValue = 26 * digitalRead(Left_Trace_sensor_1) + 16 * digitalRead(Left_Trace_sensor_2) + 8 * digitalRead(Right_Trace_sensor_1) + edge_find;
+  
+  switch (stateValue) // match the different movement to different state values, which represent the state of the car
+  
+  //have obstacle -> digitalRead is 0, otherwise 1
+  {
+    //when the robot does not detect the edge
+    case 0: // This case must exist
+    Serial.println("no edge now");
+    Forward(); // go to find a edge now!! I just want to be as lazy as a robot car.
+    Serial.println("go straight, case 0");
+    break;
+
+    case 16: // This case must exist
+    Forward();
+    Serial.println("find edge now"); // Great! you find an edge
+    edge_find = 1; // make the boolean value equal to HIGH, then it will be into another pattern
+    Serial.println("go straight along the road if it has an edge at first, case 16");
+    break;
+
+    case 42: // This case must exist
+    turnRight();
+    Serial.println("find edge now");
+    edge_find = 1; // nobody wants to know what this means except Dave, which has been shown in case 16
+    Serial.println("turnRight after finding an edge and going out of the table, case 42");
+    break;
+
+    case 8: // This case must exist
+    turnRight();
+    Serial.println("find edge now");
+    edge_find = 1; // nobody wants to know what this means, which has been shown in case 16
+    Serial.println("the right side of the car finds an edge, case 8");
+    break;
+
+    case 24: // This case must exist
+    Forward();
+    Serial.println("find edge now");
+    Serial.println("the right side of the car finds an edge, case 24");
+    edge_find = 1;
+    break;
+
+    case 26: // This case must exist
+    turnRight();
+    Serial.println("find edge now");
+    edge_find = 1; // nobody wants to know what this means, which has been shown in case 16
+    Serial.println("case 26");
+    break;
+
+    case 34: // This case must exist
+    turnRight();
+    Serial.println("find edge now");
+    edge_find = 1; // nobody wants to know what this means, which has been shown in case 16
+    Serial.println("case 34");
+    break;
+
+    case 50: // This case must exist
+    Backward();
+    Serial.println("find edge now");
+    edge_find = 1; // nobody wants to know what this means, which has been shown in case 16
+    Serial.println("case 50");
+    break;
+
+    // the above is the progress to find edge, there may be more scenarios***************** And these cases exist for 100%, human can place them like that or just be created by case 0
+
+    // the below is the progress after find the edge.
+
+    case 1: // This case must happen from case 17 if the direction is a little bit to right
+    turnLeft();
+    Serial.println("case 1, you are going out of the table");
+    break;
+
+    case 17: // This is the perfect case that represents that the robot is on its way
+    Forward();
+    Serial.println("case 17, you are fllowing the edge, great");
+    break;
+
+    case 43: // This is the opposite case of case 1, this must happen from case 17 is the direction is little bit to left
+    turnRight();
+    Serial.println("case 43, you are going left side, should correct your way");
+    break;
+
+    case 9: // I just don't know how can this situation can happen********************
+    turnRight();
+    Serial.println("case 9, how can it happens? Jesus");
+    break;
+
+    case 25:  // This will happen when the two front IR sensors are not detected at the same time, this will make an extra compensation for this scenario, otherwise, I don't know how it can happen*****
+    Forward();
+    Serial.println("case 25, No! No! you should wait for the left first IR sensor");
+    break;
+
+    case 27:  // This will happen when the car turns right from case 34, it should make the car continue to turn right
+    turnRight();
+    Serial.println("case 27, how can it happens?");
+    break;
+
+    case 35: // This may also be caused by the case when the robot has not found an edge.
+    turnRight(); // Continue to turn right
+    Serial.println("case 35, I don't how can this senario happen");
+    break;
+
+    case 51: // This must exist
+    Serial.println("case 51, the most important case.");
+    lastTime[edge_count] = millis();
+    Serial.println(lastTime[edge_count]);
+    edge_count ++;
+    Serial.println(edge_count);
+
+    turnRight();
+    delay(turn90right);
+      
+    break;
+  
+}
+}
+
+
+// A certain model for navigate the table
+void Certain_mode() {
+
+  
+  edge_length[0] = lastTime[1] - lastTime[0] - turn90right;
+  edge_length[1] = lastTime[2] - lastTime[1] - turn90right;
+  edge_length[2] = lastTime[3] - lastTime[2] - turn90right;
+  edge_length[3] = lastTime[4] - lastTime[3] - turn90right;
+  Serial.println("This is the edge_length");
+  Serial.println(edge_length[0]);
+  Serial.println(edge_length[1]);
+  Serial.println(edge_length[2]);
+  Serial.println(edge_length[3]);
+  Serial.println("This is the end of edge_length");
+  
+  int i = 1;
+  for(int i = 0; i< 5; i++){
+    //edge 0
+    Forward();
+    delay(edge_length[0]/10*(9-2*i));
+   
+    turnRight();
+    delay(turn90right);
+    
+  //edge 1
+    Forward();
+    delay(edge_length[1]/10*(9-2*i));
+   
+    turnRight();
+    delay(turn90right);
+
+  //edge 2 navigation
+    Forward();
+    delay(edge_length[2]/10*(8-2*i));
+   
+    turnRight();
+    delay(turn90right); // *******************
+    
+    
+ //edge 3 navigation
+    Forward();
+    delay(edge_length[3]/10*(8-2*i));
+    
+    turnRight();
+    delay(turn90right);
+    
+  }
+
+  
+  
+}
+
+
+// This is for the edge_count >= 8
+//This is the core part of this code. Combine the IR sensors and two motors together without Photo Interrupter Sensor in this part.
+void Automatic_mode_random() {
+  
+  int stateValue = 0; // represent the state of the car by the value of integers calculated by IR sensors
+
+  stateValue = 24 * digitalRead(Left_Trace_sensor_1) + 8 * digitalRead(Right_Trace_sensor_1);
+  
+  stateValue = random(stateValue, stateValue + 3); // get a random value fromm stateValue and stateValue+3 ( stateValue+3 is not included), this will make the robot have more reactions.
+  
+  switch (stateValue) // match the different movement to different state values, which represent the state of the car
+  
+  //have obstacle -> digitalRead is 0, otherwise 1
+  
+  {
+    case 34: // *******The front part of the car is out, take action to correct the trajectory, may have a better idea, need to change**********
+    Backward();
+    delay(500);  // give the car 500 ms, which is 0.5 seconds, to move backward
+    turnRight();
+    delay(800);  // give 0.8 seconds to the car to turn right
+    Forward();
+    delay(100);  // go forward
+    break;
+    
+    case 33: // *******The front part of the car is out, take action to correct the trajectory, may have a better idea, need to change**********
+    Backward();
+    delay(300);  // give the car 500 ms, which is 0.5 seconds, to move backward
+    turnRight();
+    delay(600);  // give 0.8 seconds to the car to turn right
+    Forward();
+    delay(100);  // go forward
+    break;
+    
+    case 32: // *******The front part of the car is out, take action to correct the trajectory, may have a better idea, need to change**********
+    Backward();
+    delay(150);  // give the car 500 ms, which is 0.5 seconds, to move backward
+    turnRight();
+    delay(300);  // give 0.8 seconds to the car to turn right
+    Forward();
+    delay(100);  // go forward
+    break;
+
+    case 26: // *******The upper left corner of the car is slightly out of the table, take action to correct the trajectory, may have a better idea, need to change**********
+    Backward();
+    delay(300); // give the car 300 ms, which is 0.3 seconds, to move backward
+    turnRight();
+    delay(500); // give 0.5 seconds to the car to turn right
+    Forward();
+    delay(100); // go forward
+    break;
+
+    case 25: // *******The upper left corner of the car is slightly out of the table, take action to correct the trajectory, may have a better idea, need to change**********
+    Backward();
+    delay(200); // give the car 300 ms, which is 0.3 seconds, to move backward
+    turnRight();
+    delay(400); // give 0.5 seconds to the car to turn right
+    Forward();
+    delay(100); // go forward
+    break;
+
+     
+    case 24: // *******The upper left corner of the car is slightly out of the table, take action to correct the trajectory, may have a better idea, need to change**********
+    Backward();
+    delay(100); // give the car 300 ms, which is 0.3 seconds, to move backward
+    turnRight();
+    delay(200); // give 0.5 seconds to the car to turn right
+    Forward();
+    delay(100); // go forward
+    break;
+
+    case 10: // *******The upper right corner of the car is slightly out of the table, take action to correct the trajectory, may have a better idea, need to change**********
+    Backward();
+    delay(300); // give the car 300 ms, which is 0.3 seconds, to move backward
+    turnLeft();
+    delay(500); // give 0.5 seconds to the car to turn right
+    Forward();
+    delay(100); // go forward
+    break;
+
+    case 9: // *******The upper right corner of the car is slightly out of the table, take action to correct the trajectory, may have a better idea, need to change**********
+    Backward();
+    delay(200); // give the car 300 ms, which is 0.3 seconds, to move backward
+    turnLeft();
+    delay(400); // give 0.5 seconds to the car to turn right
+    Forward();
+    delay(100); // go forward
+    break;
+
+    case 8: // *******The upper right corner of the car is slightly out of the table, take action to correct the trajectory, may have a better idea, need to change**********
+    Backward();
+    delay(100); // give the car 300 ms, which is 0.3 seconds, to move backward
+    turnLeft();
+    delay(200); // give 0.5 seconds to the car to turn right
+    Forward();
+    delay(100); // go forward
+    break;
+    
+    case 2:
+    analogWrite(speedLeft,50);
+    analogWrite(speedRight,50);
+    turnRight();
+    delay(700);
+    turnLeft();
+    delay(700);
+    Forward();
+    delay(200);
+    break;
+    
+    case 1:
+    Forward(); // keep walking forward
+    break;
+    
+    case 0:
+    Forward(); // keep walking forward
+    break;
+    
+  }
+  
+}
+
+//the end of the Automatic_mode method
+
+//  pinMode(directionLeft,OUTPUT);
+//  pinMode(speedLeft,OUTPUT);
+//  pinMode(brakeLeft,OUTPUT);
+//
+//  pinMode(directionRight,OUTPUT);
+//  pinMode(speedRight,OUTPUT);
+//  pinMode(brakeRight,OUTPUT);
+
+// there are five basic ways to move the car, which are followed as below. And we can set their speed in other mehods i.e Automatic_mode()
+void Forward() {
+  digitalWrite(directionLeft,HIGH);
+  digitalWrite(directionRight,HIGH);
+}
+
+void Backward() {
+  digitalWrite(directionLeft,LOW);
+  digitalWrite(directionRight,LOW);
+}
+
+void turnRight() {
+  digitalWrite(directionLeft,HIGH);
+  digitalWrite(directionRight,LOW);
+}
+
+void turnLeft() {
+  digitalWrite(directionLeft,LOW);
+  digitalWrite(directionRight,HIGH);
+}
+
+void Stop() {
+  digitalWrite(brakeLeft,HIGH);
+  digitalWrite(brakeRight,HIGH);
+}
+
+// end of the mothods of movements
+
+void count() {
+    val = digitalRead(pI); // read the value come from pI snesor 1
+  
+    if(val < sens) // something has been in the gulf of pI
+    stat = LOW; // set the state to be LOW to represent the status
+    else //if nothing
+    stat = HIGH; // set the state to be HIGH to represent the status
+
+    if(stat2 != stat) // if there is a change, because state is HIGH by default, meaning nothing between the gulf.
+  {
+    counter ++; // need to add 1 to counter
+    delay(100);
+    Serial.println(counter);
+    stat2 = stat; // set for the next dectect of new change
+  } 
+  
+}
